@@ -1,0 +1,140 @@
+<!-- 将此文件放入ckplayer目录下，并设置ckplayer/ckplayer.js 和 ckplayer/ckplayer.xml 中的第21个参数为3，表示全局监听 -->
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<title>ckplayer简单调用演示</title>
+
+</head>
+
+<body>
+
+<strong>Test-01</strong>
+<div id="a1"></div>
+
+<script type="text/javascript" src="ckplayer/ckplayer.js" charset="utf-8"></script>
+
+<script>
+
+    // 保存最后一次执行播放动作的播放器对象的id
+    var lastPlayVideoId = '';
+
+    // 测试按钮1的执行过程
+    function test1(){
+        CKobject.getObjectById('ckplayer_a1').playOrPause();
+    }
+
+    // 测试按钮2的执行过程
+    function test2(){
+        CKobject.getObjectById('ckplayer_a2').playOrPause();
+    }
+
+    // 测试按钮3的执行过程
+    function test3(){
+        CKobject.getObjectById('ckplayer_a3').playOrPause();
+    }
+
+    // 全局监控 执行过程
+    function ckplayer_status(str){
+        text = document.getElementById('text1');
+        text.value = str;
+
+        pos = str.indexOf('->');
+        videoId = str.substr(0,pos);
+        status = str.substr(pos+2);
+
+        posStatus = status.indexOf(':');
+        if(posStatus < 0){
+            statusName = status;
+            statusValue = '';
+        }else{
+            statusName = status.substr(0,posStatus);
+            statusValue = status.substr(posStatus+1);
+        }
+        text.value += " ---> | " + videoId + " | " + statusName + " | " + statusValue ;
+
+        if(statusName == 'play'){
+            lastPlayVideoId = videoId;
+        }
+        
+        if(statusName == 'time' && lastPlayVideoId != videoId){
+            CKobject.getObjectById(videoId).changeStatus(0);
+            CKobject.getObjectById(videoId).videoPause();
+            CKobject.getObjectById(videoId).changeStatus(3);
+        }
+        text2 = document.getElementById('text2');
+        text2.value = lastPlayVideoId;
+    }
+
+</script>
+
+<script type="text/javascript">
+	var flashvars={
+		f:'http://movie.ks.js.cn/flv/other/1_0.flv',
+		c:0,
+		};
+	var params={bgcolor:'#FFF',allowFullScreen:true,allowScriptAccess:'always',wmode:'transparent'};
+	CKobject.embedSWF('ckplayer/ckplayer.swf','a1','ckplayer_a1','300','200',flashvars,params);
+	/*
+	CKobject.embedSWF(播放器路径,容器id,播放器id/name,播放器宽,播放器高,flashvars的值,其它定义也可省略);
+	下面三行是调用html5播放器用到的
+	*/
+	//var video=['http://movie.ks.js.cn/flv/other/1_0.mp4->video/mp4','http://www.ckplayer.com/webm/0.webm->video/webm','http://www.ckplayer.com/webm/0.ogv->video/ogg'];
+	//var support=['iPad','iPhone','ios','android+false','msie10+false'];
+	//CKobject.embedHTML5('a1','ckplayer_a1',600,400,video,flashvars,support);
+	
+	
+	function closelights(){//关灯
+		alert(' 本演示不支持开关灯');
+	}
+	function openlights(){//开灯
+		alert(' 本演示不支持开关灯');
+	}
+</script>
+
+
+<strong>Test-02</strong>
+<div id="a2"></div>
+<script type="text/javascript">
+	var flashvars={
+		f:'http://movie.ks.js.cn/flv/other/1_0.flv',
+		c:0,
+		};
+	var params={bgcolor:'#FFF',allowFullScreen:true,allowScriptAccess:'always',wmode:'transparent'};
+	CKobject.embedSWF('ckplayer/ckplayer.swf','a2','ckplayer_a2','330','220',flashvars,params);	
+	function closelights(){//关灯
+		alert(' 本演示不支持开关灯');
+	}
+	function openlights(){//开灯
+		alert(' 本演示不支持开关灯');
+	}
+</script>
+
+
+<strong>Test-03</strong>
+<div id="a3"></div>
+<script type="text/javascript">
+	var flashvars={
+		f:'http://movie.ks.js.cn/flv/other/1_0.flv',
+		c:0,
+		};
+	var params={bgcolor:'#FFF',allowFullScreen:true,allowScriptAccess:'always',wmode:'transparent'};
+	CKobject.embedSWF('ckplayer/ckplayer.swf','a3','ckplayer_a3','360','240',flashvars,params);	
+	function closelights(){//关灯
+		alert(' 本演示不支持开关灯');
+	}
+	function openlights(){//开灯
+		alert(' 本演示不支持开关灯');
+	}
+</script>
+
+<br/><br/>
+<button onclick="test1();">test1</button>
+<button onclick="test2();">test2</button>
+<button onclick="test3();">test3</button><br/><br/>
+ckplayer_status str : <input id="text1" value="" style="width:500px;" /><br/><br/>
+lastPlayVideoId : <input id="text2" value="" style="width:100px;" />
+
+</body>
+</html>
