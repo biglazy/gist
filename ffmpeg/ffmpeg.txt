@@ -1,0 +1,640 @@
+
+
+1. 概要：
+    ffmpeg [global_options] {[input_file_options] -i input_file} ... {[output_file_options] output_file} ...
+
+
+2. 描述：
+    关于输入输出参数：
+      -b:v 64k  |  指定输出文件比特率
+      -r 24  |  指定输入(valid for raw formats only)/输出文件帧率
+    关于用到的库文件，libray：
+      libavformat  | 输入输出格式相关
+      libavfilter  | 滤镜库，可对raw audio and video frames 进行处理
+
+
+3. 详细描述：
+    input file ---(demuxer)---> encoded data packets ----(decoder)---> decoded frames 
+    ---(encoder)---> encoded data packets ---(muxer)---> output file  
+
+3.1 关于filter滤镜：
+
+    几个filter可以链接成filter graph；
+    filter graph 分为两类: simple and complex；简单滤镜 和 复合滤镜；
+    简单滤镜：
+        一个输入，一个输出；
+        输入输出同样类型；
+        -filter 滤镜选项；简化别名如下：
+            -vf | 代表 -filter [video stream]；
+            -af | 代表 -filter [audio stream]；
+    复合滤镜：
+        可以有多个输入，多个输出；
+        输出类型不同于输入类型时；
+        -filter_complex 滤镜选项；这个是global有效-全局有效的； 
+            简化别名为：-lavfi；
+        例子：overlay filter视频滤镜，可搭配音频滤镜amix filter使用；
+            需要两个输入，生成一个输出；
+            overlay效果为用一个视频覆盖在另外一个视频之上；
+            amix效果为音频混合效果；
+
+
+3.2 关于Stream copy：
+   copy 是-codec选项的一个可选参数，使用此项则忽略指定stream的解码/编码过程；
+   速度非常快，没有质量损失；这时候滤镜选项失效，因为filter是工作在未压缩的数据上的；
+   一般用来修改封装格式，或者封装级别的元数据；(也可以用在单纯给文件切片时，速度比较快)
+
+
+4. 关于Stream selection -- 媒体流选择：
+    默认在输入文件中，每种类型选择一个媒体流，转到输出文件中；
+    默认在各个类型的媒体流中选择<最好>媒体流的标准：
+        视频：highest resolution/最高分辨率；
+        音频：most channels/最多声道；
+        字幕：first subtitle stream/第一个字幕流；
+        当同一个媒体流类型中有多个相同优先级选择的时候，选stream index小的；
+    不想使用默认的选择方式，可以使用以下选项手动设置来使对应类型中的媒体流失效：
+        -vn: 设置该选项用来使输入中视频流失效，不被选中；
+        -an: 设置该选项用来使输入中音频流失效，不被选中；
+        -sn: 设置该选项用来使输入中字幕流失效，不被选中；
+        -map: 该选项用来设置输入中各种类型媒体流的选择；
+
+5. 关于参数选项：
+    所有数字选项，如无特别指定，都可以使用某些字符来代表数字；
+    没有选项的参数，是布尔参数，默认设置为true，在前面加前缀no表示设置为false；
+
+5.1 流说明符 | Stream specifiers
+    有些选项是应用到每个媒体流的，比如 bitrate 或者 codec 选项；(比特率/码率)(编码方式)
+    流说明符用于精确指定一个选项属于哪一个媒体流； 
+    流说明符一般是附加到选项名后面，用一个冒号隔开，例如：
+        -codec:a:1 ac3 中a:1为流说明符，表示第二个音频流；整体表示为第二个音频流使用ac3编码；
+    一个流说明符可以匹配多个媒体流，例如：
+        -b:a 128k 中的a适配了所有的音频流；    
+    流说明符的可用形式：
+        stream_index : 流索引；例如：
+            -threads:1 4 将为第二个stream设置thread数量为4；
+        stream_type[:stream_index] : 流类型；其中，流类型有以下可选：
+            v or V for video；视频流(大小写有区别的，V是v的子集，具体可看定义)
+            a for audio；音频流
+            s for subtitle；字幕流
+            d for data；数据流
+            t for attachments；附件流，具体可参照-dump_attachment/-attach选项使用；
+        p:program_id[:stream_index] : program id / ???;
+        #stream_id or i:stream_id  : stream id / ???;
+        m:key[:value] : matches streams with the metadata tag key having the specified value.
+            (matching by metadata only work for input files.)
+        u : matches streams with usable configuration.
+
+5.2 通用选项 | Generic Options
+    这些选项是以ff打头的工具所通用的。These options are shared amongst the ff* tools.
+    -L : Show license -- 显示许可证；
+    -h/-?/-help/--help [arg] : 显示帮助；可选参数有：
+        long : 基本选项外的高级选项；
+        full : 完整选项；
+        decoder=decoder_name : 指定解码器名称；用-decoders查看所有解码器列表；
+        encoder=encoder_name : 指定编码器名称；用-encoders查看所有编码器列表；
+        demuxer=demuxer_name : 指定分离器；用-formats查看所有封装/分离器列表；
+        muxer=muxer_name : 指定封装器；用-formats查看所有封装/分离器列表；
+        filter=filter_name : 指定滤镜；用-filters查看所有滤镜列表；
+    -version : show version -- 显示版本信息
+    -formats :  显示可用的格式；
+    -devices :  显示可用的设备；
+    -codecs :  显示所有libavcodec中的codec/编解码器；
+    -decoders : 显示所有的解码器；
+    -encoders : 显示所有的编码器；
+    -bsfs : 显示可用的比特流滤镜；
+    -protocols : 显示可用的protocols/网络协议；
+    -filters : 显示所有可用的滤镜；libavfilter filters；
+    -pix_fmts : 显示可用的像素格式；(yuv420p等...)
+    -sample_fmts : 显示可用的音频采样格式/(音频采样算法)
+    -layouts : 显示声道名称和标准声道输出方式；
+    -colors : 显示可识别的显色名称；
+    -sources devices : 显示输入设备中自动检测到的源；
+    -sinks device : 显示输出设备中自动检测到的sinks；
+    -loglevel|-v [repeat+]loglevel : 设置日志级别；可使用repeat+[loglevel]作为前缀；可选参数有：
+        quiet, -8 : show nothing, 什么都不显示；
+        panic, 0 : 致命错误；
+        fatal, 8 : 致命错误；
+        error, 16 : 异常；extradata 
+        warning, 24 : 警告；
+        info, 32 : messages ；
+        verbose, 40 : messages ；
+        debug, 48 : debug infos ；
+        trace, 56 : 所有；
+        默认状态下日志输出到stderr，标准错误输出；
+    -report : 将命令和控制台输出消息输出，并生成一个日志报告文件；
+        默认采用-loglevel verbose；可选参数如下：
+        file : 报告文件的名称，可使用一些替代变量；
+        level : 设置日志级别；
+        也可使用设置FFREPORT环境变量的方式来设置报告参数；
+    -hide_banner :　隐藏输出中的头部信息，有关版权和编译选项和库版本的一些信息；
+    -cpuflags : 设置和清理cpu flags；这个选项是为了测试用的；
+    -opencl_bench : 该选项只在编译时使用了 --enable-opencl 选项时可用；
+
+5.3 AVOptions / AV选项
+    这些选项是由libavformat,libavdevice,libavcodec librayies提供的，主要包括两类：
+    genneric -- 通用的：对于任何封装，编/解码器，设备都是可用的选项；
+        通用选项列在containers/devices的AVFormatContext选项下面，和codecs的AVCodecContext选项下面；
+    private -- 私有的：只对特定封装，编/解码器，设备可用的选项；
+        私有选项列在它们对应的containers/devices/codecs下面；
+    所有的codec AVOptions是对每个媒体流生效的，因此需要给生效的媒体流加上流说明符；
+    注意：-nooption语法，不能用在boolean AVoptions选项上，这时候要使用 -option 0/-option 1 的方式；
+
+5.4 Main Options | 主要选项 
+    -f fmt(input/output) : 强制输入或者输出格式；通常不需要，会自动检测文件格式；
+    -i filename(input) :　指定输入文件；
+    -y (global) :  输出文件覆盖无需询问； 
+    -n (global) :  输出文件不覆盖，如存在则立即退出；
+    -c[:stream_specifier] codec (input/output,per-stream)
+    -codec[:stream_specifier] codec (input/output,per-stream)
+        为一个或多个媒体流选择一个编码器或者解码器；
+        可以使用copy，表示直接使用原媒体流，不进行重编码，只对output生效；例如：
+        ffmpeg -i INPUT -map 0 -c:v libx264 -c:a copy OUTPUT
+        对于每个媒体流来说，只有最后匹配的-c/-codec选项生效；
+        For each stream, the last matching c option is applied；
+
+    -t duration (input/output) : 
+        作为输入选项时，限定输入文件的读取时间长度；
+        作为输出选项时，限定输出文件的写入时间长度；
+        -to 和 -t 是独立作用的，一起使用时，-t优先生效；
+    -to position (output) : 指定输出文件停止的位置；
+    -fs limit_size (output) : 指定输出文件的大小，单位为bytes； 
+    -ss position (input/output) : 
+        作为输入选项时，在输入文件中寻找指定position；但大多数格式不能精确的找到位置，ffmpeg会找到
+          position之前最近的seek point；在转码时，如果使用-accurate_seek选项(默认设置)，seek point和
+          position之间的额外片段会被解码并被丢弃；当使用stream copy或者-noaccurate_seek选项时，这个
+          片段会被解码并保存；
+        作为输出选项时，输入文件进行解码，但将position时间戳之前的内容丢弃；
+    -sseof position (input/output) : 
+        同-ss，但是初始参照位置为EOF，即End Of File；文件结束之前的位置为负数，文件结束位置为0；
+    -itsoffset offset (input) : 
+        设置输入文件的时间偏移量；设置一个正数表示对应的媒体流被推迟设定偏移量的时间；
+    -timestamp date (output) : 设置记录时间戳；
+    -metadata[:metadata_specifier] key=value (output,per-metadata) : 设置一对元数据；
+        metadata_specifier可选项可针对stream或chapter设置metadata，具体可参考-map_metadata；
+        该项可覆盖-map_metadata设置的元数据，因此可使用空值来删除设置的元数据；可参考官网此处例子；
+    -target type (output) : 定义目标文件类型；
+        类型可使用前缀pal-/ntsc-/film-来使用对应的标准；
+        其他输出格式选项会被自动设定(bitrate,codecs,buffer sizes)；也可手动附加指定不冲突的选项；
+    -dframes number (output) :  也可使用别名 -frames:d；
+        设置输出的数据帧数，这个是设置输出的总帧数，不是单位时间的帧数；
+        跟-r的区别很大，-r是设定单位时间内的帧数，即帧率，不是一个概念； 
+    -frames[:stream_specifier] framecount (output,per-stream) : 
+        在设定的framecount数量帧后停止输出到设定的stream，即只输出设定的framecount数量帧；
+    -q[:stream_specifier] q (output,per-stream) : 
+    -qscale[:stream_specifier] q (output,per-stream) : 设置合适的质量参数-VBR；
+        如果没有流说明符，则默认为仅对所有视频流生效；
+        -crf : h264编码，请使用该选项；8-bit使用0-51，默认值23；10-bit使用0-63；
+            具体参考可见：https://trac.ffmpeg.org/wiki/Encode/H.264
+    -filter[:stream_specifier] filtergraph (output,per-stream) : 
+        使用简单滤镜图过滤媒体流，使用复合滤镜请用-complex_filter选项；
+        此选项时的滤镜图必须有同样类型的单个输入和单个输出，输入关联到label in，输出关联到label out；
+    -filter_script[:stream_specifier] filename (output,per-stream) : 
+        同上，区别是这里是用文件方式来设置滤镜图；
+    -pre[:stream_specifier] preset_name (outname,per-stream): 
+        为匹配的媒体流指定预设配置； 
+    -stats (global) : 输出编码进度/状态，默认开启；要明确关闭进度/状态输出，需要使 -nostats参数；
+    -progress url (global) : 发送编程友好的进度信息到指定url；
+        post请求数据包的内容，开头行为16进制数字的字符串，表示一个数据包的大小，其余部分由key=value形式的
+        行组成，key由字母数字字符组成；进度信息大约每秒写入一次，每个数据包的最后一行key总是"progress"，
+        表示编码进度数据；最后一个数据包的最后一行为"progress=end"，表示结束；
+        网络抓包测试，请求中数据格式如下：
+        也可参照：https://ffmpeg.org/pipermail/ffmpeg-user/2012-December/011978.html
+            ae
+            frame=4195
+            fps=140.9
+            stream_0_0_q=28.0
+            bitrate= 409.6kbits/s
+            total_size=8599083
+            out_time_ms=167947029
+            out_time=00:02:47.947029
+            dup_frames=172
+            drop_frames=0
+            progress=continue
+    -stdin : 标准输入可以产生交互；默认开启，除非标准输入用作ffmpeg的输入；(比如运行中按q可退出)
+        要明确的关闭该项，使用-nostdin选项；在shell下与 ffmpeg ... </dev/null 效果相同；
+    -debug_ts (global) : 
+        输出时间戳信息，默认是关闭的，这个功能一般用于测试和调试目的；输出格式可能因版本而变化；
+        也可以参照这个选项 -fdebug ts ；
+    -attch filename (output) : 为输出文件添加一个附件；
+        有一些格式支持这个特性，比如Matroska，可以附加字体文件用以渲染字幕；
+        附件被看做一个特殊类型的媒体流，因此使用该选项将添加一个新流到输出文件中，因此通常使用的
+        对每个流都生效的选项也会对这个附件流生效；附件流在其它所有流都创建完成后创建；
+        具体Matroska中使用字体文件作为附件的方式可参照官网文档该章节；
+    -dump_attachment[:stream_specifier] filename (input,per-stream) : 
+        提取输出文件中匹配的附件流到一个给定名称的文件中；
+        名称为空(可使用"")时，使用该流中定义的元数据标签 -- filename metadata tag；
+        这个方法也可以用于其它流额外文件的提取；
+    -noautorotate : 使 根据文件元数据-metadata自动旋转视频 选项失效；
+
+
+5.5 Video Options -- 视频选项
+    -b integer (encoding,audio,video) : 设置比特率，单位为bits/s；默认值为200K；
+    -b:v integer (encoding,video) : 设置视频比特率，单位为bits/s；
+    -vframes number (output) : 设置视频的输出总帧数，这是-frames:v选项的别名；
+    -r[:stream_specifier] fps (input/output,per-stream) : 设置帧率，(Hz值，分数或者缩写)
+        作为输入选项时：忽略任何存储在文件中的时间戳，以设置的常量fps的值为帧率产生的新时间戳代替；在
+        有些格式下，这跟-framerate选项不太相同(过去的老版本是相同的)；如果对-frameate有疑问请使用-r；
+        作为输出选项时：复制或者删除输入帧来达到设置的常量fps代表的帧率；
+        默认值为25；
+    -s[:stream_specifier] size (input/output,per-stream) : 设置帧的大小；
+        作为输入选项时：这是video_size私有选项的一个缩写；在帧的大小既不存在文件中，也不可配置的情况下，
+        有些分离器会识别这个选项；
+        作为输出选项，在对应的滤镜图后面加入一个scale(规格)滤镜，如果要将scale滤镜加入开头或者其它位置，
+        请直接使用scale滤镜；
+        size 格式：wxh (宽x高)，默认值会设置为跟源头一致；
+    -aspect[:stream_specifier] aspect (output,per-stream) : 设定视频显示的纵横比例；
+        aspect可以是一个浮点数字符串，或者一个分数形式的字符串；如果同时也使用了-vcodec copy选项，它将
+        影响存储在容器/封装级别的宽高比，但不会影响存储在编码帧中(如果存在的话)的宽高比；
+    -vn (output) : 使视频的输出失效；
+    -vodec codec (output) : 设置输出视频编码库，是-codec:v的别名；
+    -pass[:stream_specifier] n (output,per-stream) :
+        n可以选择1或者2；这个选项用来做2次视频编码；
+        第一次会将视频的分析信息写入一个日志文件-log file(可参考-passlogfile选项)，第二次使用log file
+        中的信息以精确的比特率产生视频；在pass 1中，可以设置使音频无效，并输出到NUL或/dev/null；
+    -passlogfile[;stream_specifier] prefix (output,per-stream) : 设置2次视频编码日志文件的名称前缀；
+        默认的情况前缀是"ffmpeg2pass"；完整格式为PREFIX-N.log，N为输出流的数字索引；
+    -vf filtergraph (output) : -filter:v 的别名；使用滤镜图过滤视频流；
+
+5.6 Advanced Video options -- 高级视频选项
+    -pix_fmt[:stream_specifier] format (input/output,per-stream) : 设置像素格式；
+        使用-pix_fmts显示所有支持的像素格式；
+        如果设置的像素格式不能使用，ffmpeg会输出一个警告，并选择被编码器支持的最好的像素格式；
+        如果format有前缀+，在设置的像素格式无法使用的情况下，ffmpeg将会无异常提示的退出，滤镜图中的
+        自动转换会失效；如果format为+，ffmpeg选择跟输入(或者图像输出)同样的像素格式，自动转换无效；
+    -sws_flags flags (input/output) : 设置SwScale flags； 
+    -vdt n : 废弃的限制；
+    -rc_override[:stream_specifier] override (output,per-stream) : 
+        为特定间隔进行码率控制设置的重载，格式为以斜杠分割的"int,int,int"列表；前两个数字分别表示开始
+        和结束帧数，最后一个数在正数是表示quantizer -- 量化器，在负数时表示视频质量系数；
+    -ilme : 在编码器中强制开启隔行扫描支持(仅支持MPEG-2和MPEG-4)；
+        如果输入文件是隔行扫描的，并想保持隔行扫描来使损失最小，就使用该选项；可选的另外一个选项是使用
+        -deinterlace选项来反交错(将各行扫描转换为逐行扫描)，但反交错会导致产生质量损失；
+    -psnr : 计算压缩帧的PSNR -- 峰值信噪比；
+    -vstats : 输出视频编码统计信息到vstats_HHMMSS.log文件中；
+    -vstats_file file : 输出视频编码统计信息到file文件中；
+    -top[:stream_specifier] n (output,per-stream) : 应该是跟逐行扫描的顶部/底部优先有关的设置；
+        top=1/bottom=0/auto=-1 field first
+    -dc precision : 设置dc精度值，这个值一般为8,9,10，有时候也用11；
+    -vtag fourcc/tag (output) : 强制视频标签/四字符代码，这是-tag:v的一个别名；
+    -qphist (global) : 显示QP histogram -- 量化参数柱状图； 量化参数(quantization parameter, QP)；
+    -vbsf bitstream_filter : 不赞成使用；参考-bsf；
+    -force_key_frames[:stream_specifier] time[,time...] (output,per-stream) : 
+    -force_key_frames[:stream_specifier] expr:EXPR (output,per-stream) : 
+        在特定的时间戳上强制指定关键帧，明确说就是每个指定时间戳后的第一帧设置为关键帧；
+        假如使用expr:EXPR方式设置参数，后面的EXPR是一个表达式，每一帧都会重新计算，不为0时指定关键帧；
+        假如某一个指定的时间戳是"chapters [delta]"形式的，表示文件中所有chapters的开始时间戳，再加上
+        一个delta表示的以秒为单位的偏移量；表达式的可选常量，其它具体例子可参考官方文档中对应章节；
+    -copyinkf[:stream_specifier] (output,per-stream) : 
+        当执行stream copy-流复制的时候，也复制开头发现的非关键帧；
+    -hwaccel[:stream_specifier] hwaccel (input,per-stream) : 使用硬件加速来解码匹配的媒体流；
+        如果选中的选项不可用或者不被选中的解码器支持，这个选项会失效；可选项如下：
+        none ：不使用任何硬件加速(默认设置)；
+        auto ： 自动选择硬件加速方法；
+        vda ：使用苹果VDA硬件加速；
+        vdpau ：使用VDPAU(Unix视频解码和显示API)硬件加速；
+        dxva2 ：使用DXVA2(DirectX视频加速)硬件加速；
+        注意：大多数加速方法是用来显示，在现代的CPU上并不比软件解码快；另外，ffmpeg通常需要从GPU内存
+        复制解码的帧到系统内存中，会导致进一步的性能损失；因此这个选项通常是用来测试用的；
+    -hwaccel_device[:stream_specifier] hwaccel_device (input,per-stream) : 
+        为硬件加速选择一个设备；只有上一个选项指定时这个选项才有效；
+        这个选项表示选定的加速方法使用指定的硬件；
+        vdpau ：
+        对于vdpau来说，这个选项指定使用X11屏幕显示程序；如果这个选项不指定，将使用DISPLAY环境变量的值；
+        dxva2 ：
+        对于DXVA2来说，这个选项会包含显示适配器的数字号；如果这个选项不指定，将使用默认的适配器；
+    -hwaccels : 显示当前ffmpeg编译包所支持的所有的硬件加速方法；
+
+5.7 Audio Options -- 音频选项
+    -ab integer (encoding,audio) : 设置音频比特率，单位为bits/s；默认值为128K；或者使用-b:a也可以；
+    -aframes number(output) : 设置音频输出总帧数，这是-frames:a的别名；
+    -ar[:stream_specifier] freq (input/output,per-stream) : 设置音频流的采样率；
+        对于输出流来说，默认设置到同对应输入流一致；对于输入流来说，这个选项仅仅对音频采集设备和原生的
+        分离器生效，并且必须设置好对应的分离器选项；
+    -aq q (output) : 设定音频质量，(codec-specific -- 编码库特性，VBR)，这个-q:a的一个别名；
+    -ac[:stream_specifier] channels (input/output,per-stream) :
+        设置声道数量，对于输出流来说，默认设置到跟输入流一样；对于输入流来说，对于输入流来说，这个选项
+        仅仅对音频采集设备和原生的分离器生效，必须设置好对应的分离器选项；
+    -an (output) : 使音频输出的记录失效；
+    -acodec codec (input/output) : 设置音频编码解码库，这是-codec:a的别名；
+    -sample_fmt[:stream_specifier] sample_fmt (output,per-stream) : 
+        设置音频采样格式；使用-sample_fmts来查看所有支持的采样格式；
+    -af filtergraph (output) : 创建滤镜图并应用在指定的音频流上；这是-filter:a的一个别名；
+
+
+5.8 Advanced Audio options -- 高级音频选项
+    -atag fourcc/tag (output) : 强制使用音频标签/四字符代码，这是-tag:a的别名；
+    -absf bitstream_filter : 不赞成，可参考-bsf；
+    -guess_layout_max channels (input,per-stream) : 
+        如果某种声道输出方式不识别，尝试推测；仅推测声道数小于等于设置的channels值的流，比如设置为2时，
+        只识别1声道为mono方式，2声道为stereo方式，不识别多于2声道的；
+        默认总是推测每一个；设置为0时使所有声道的推测失效；
+
+5.9 Subtitle options -- 字幕选项
+    -scodec codec (input/output) : 设置字幕编码/解码器，是-codec:s的别名；
+    -sn (output) : 是输出的字幕记录失效；
+    -sbsf bitstream_filter : 不赞成，可参考-bsf；
+
+5.10 Advanced Subtitle options  -- 高级字幕选项
+    -fix_sub_duration : 修正字幕的时长设置；
+        大概意思是使用此选项来防止上个字幕数据包的时长和下个字幕数据包的时间戳之间产生冲突；
+    -canvas_size size : 设置用来渲染字幕的画布的大小；
+
+5.11 Advanced options -- 高级选项
+    -map [-]input_file_id[:stream_specifier][,sync_file_id[:stream_fpeicifer]] | [linklabel] (output) :
+        输出映射：
+        指定一个或者多个输入流作为输出文件的源；每个输入流是由输入文件索引和输入文件中的流索引指定的；
+        这些索引都是从0开始的；如果指定了sync_file_id:stream_specifier，则表示该输入流用于同步引用；
+        第一个-map选项指定了输出流0的源，第二个-map选项指定了输出流1的源，以此类推；位于流说明符前面
+        的-(减号/负号)字符表示创建一个"否定"输出映射，它将会使已经创建的输出映射中匹配的流无效；
+        可选的[linklabel]形式参数，用于将复合滤镜图的输出映射到输出文件中；linklabel必须和滤镜图中定义
+        的输出link lable一致；
+        ==> 具体使用例子，请参照官方文档此章节；
+        ==> 注意：使用-map选项将会使输出文件默认的输出映射失效；
+    -ignore_unknown : 尝试复制输入流中未知类型的流时，将其忽略，而不是获取失败；
+    -copy_unknown : 尝试复制输入流中未知类型的流时，允许复制，而不是获取失败；
+    -map_channel [input_file_id.stream_specifier.channel_id|-1][:output_file_id.stream_specifier] : 
+        将一个输入流中的音频声道映射到输出中；如果[:output_file_id.stream_specifier]没有指定，将会映射
+        到所有的音频输出流中；
+        使用-l选项替代input_file_id.stream_specifier.channel_id会映射一个静音声道到输出中；
+        -map_channel选项的顺序决定了输出流中声道的顺序；
+        输出流中的声道输出方式是由被映射的声道的数量决定的，出现一次表示单声道，2次表示立体声，以此类推；
+        如果输入和输出声道方式不匹配，-ac和-map_channel选项的组合使用会更新 channel gain levels - 通道
+        增益水平，比如：2个-map_channel选项和-ac 6选项一起使用的时候；
+        注意：目前每个输出流中仅可以包含来自单一输入流的声道，不能使用-map_channels选项选出来自不同输入
+        流(不管是同一输入文件还是不同输入文件)的多个声道并把它们合并到同一个输出流中；因此，以下的使用
+        方式目前是不可实现的，例如：将2个单独的单声道音频流合并到一个音频流中；但将一个立体声音频流分离
+        为两个单声道音频流是可以的；如果需要实现这个特性，可能的变通方式是使用amerge音频滤镜，具体可参见
+        官方文档该章节或者amerge滤镜的使用文档；
+        提到的具体例子，都可参考官方文档该章节；
+    -map_metadata[:metadata_spec_out] infile[:metadata_spec_in] (output,per-stream) :
+        根据输入文件的元数据信息设置输出文件的元数据信息；注意：infile这里是0开头的文件索引，不是文件名；
+        metadata_spec_out/in参数指定了哪些元数据需要复制，元数据说明符/指示符可以是如下形式：
+        g ： 全局元数据，比如：应用到整个文件的元数据；
+        s[:stream_spec] ： 媒体流元数据，stream_spec参数是一个流说明符/指示符；在输入元数据说明符中，第
+        一个匹配的流作为复制源，在输出元数据说明符中，所有匹配的流作为复制目标；
+        c:chapter_index ： 章节元数据，chapter_index是0开头的章节索引；
+        p:program_index ： 程序元数据，program_index是0开头的程序索引；
+        如果元数据说明符省略，则默认使用全局元数据；默认的，会复制第一个输入文件的全局元数据，流元数据/
+        章节元数据会和流/章节一起被复制；创建相关类型的任何映射将会使得这个默认映射关系；
+        负数的文件索引用来创建一个虚拟映射关系，这可以使自动复制无效；
+    -map_chapters input_file_index (output) : 从指定的文件索引对应文件复制章节到下一个输出文件中；
+        如果没有指定章节映射，将会从第一个输入文件中复制至少一个章节；使用负数文件索引表示，所有章节复制
+        都无效；
+    -benchmark (global) ：在编码结束时显示基本信息；显示CPU时间/最大内存使用量，不是所有的系统都支持最大
+        内存使用量，如果不支持，则会显示为0；
+    -benchmark_all (global) ：在编码时候显示基本信息；显示各种阶段的(音频/视频 编码/解码)CPU时间；
+    -timelimit duration (global) ：设置ffmpeg的运行时间限制，在运行设置的时长后ffmpeg会退出；
+    -dump (global) ：将每一个输入数据包都输出到标准错误输出；
+    -hex (hex) ：当输出数据包的时候，也输出有效负载；
+    -re (input) ：以原生帧率读取输入；主要用来模仿采集设备，或者模仿直播输入流(比如，从文件读取)；
+        不能用于实际的采集设备或者直播输入流(可能导致数据包丢失)；默认的，ffmpeg会尝试以竟可能快的速度
+        读取输入；这个选项将会使得输入文件的读取减慢到，跟输入文件的原生帧率一样；对于实时输出很有帮助，
+        比如(直播流)；
+    -loop_input ：循环输入流；当前仅仅对图像流有效；这个选项可用于自动FFserver测试；
+        不赞成使用，可使用-loop 1；
+    -loop_output number_of_times ：
+        为支持循环的格式反复的循环输出，例如：动图GIF格式(0表示无限循环)；不赞成使用，可使用-loop；
+    -vsync parameter ：设置视频同步方法；
+        为了兼容性的考虑，旧的值可以指定为数字，新增加的值必须指定为字符串；
+        0，passthrough ：每一帧都和它的时间戳一起从demuxer传输到muxer；
+        1，cfr ：复制帧并删除，以准确达到设定的固定帧率；
+        2，vfr ：帧和它的时间戳一起传输；或者删除时间戳，以防止2个帧有同样的时间戳；
+        drop ：传输帧但删除所有的时间戳，让封装器-muxer根据帧率生成新的时间戳；
+        -1，auto ：根据muxer的兼容性来在1和2之间选择；这是默认设置；
+        注意：时间戳在这之后可能被muxer-封装器进一步的修改；例如：使用格式选项avoid_negative_ts的情况下；
+        使用-map映射可以指定输出哪个流的时间戳；可以保留视频或音频流的时间戳，把其它流的和未变化的同步；
+    -frame_drop_threshold parameter ：帧删除限制；这个选项指定了在多少帧之后才可以开始删除帧；
+        在帧率单位中，1.0表示1帧，默认值为-1.1；
+        可能的使用场景：在时间戳错乱的情况下避免错误的删除帧；或者使用额外的时间戳来增加帧删除的精确度；
+    -async samples_per_second ： 音频同步方法；
+        拉伸/压缩音频流以匹配时间戳，参数值为每秒最大采样次数；
+        -async 1 ：是一个特殊的情况，只有音频流的开始被修正，后续则不再修正；
+        注意：时间戳在这之后可能被muxer-封装器进一步的修改；例如：使用格式选项avoid_negative_ts的情况下；
+        这个选项已不被赞成使用，建议使用aresample音频滤镜替代；
+    -copyts ：不处理输入时间戳，保留它们的值；特别是，不要移除初始的开始时间偏移量；
+        注意：依赖于视频同步选项，或者依赖于特定的封装器处理过程(比如：格式选项avoid_negative_ts开启时)，
+        即使在开启此选项的情况下，输出流的时间戳也可能与输入流的不匹配；
+    -start_at_zero ：当使用-copyts时，改变输入时间戳，让它们从0开始；
+        这也意味着，使用-ss 50将会使得输出的时间戳从50s开始，不管输入的时间戳是从什么时候开始；
+    -copytb mode ：指定执行流复制--stream copying的时候，编码器的时间基准(encoder timebase)如何设置；
+        mode是一个整数值，可以采用以下值中的一个：
+        1 ：使用分离器的时间基准(demuxer timebase)；
+            从输入分离器复制输入的时间基准到输出编码器中；这个设置可以在复制可变帧率的视频流时来匹配非
+            单调增加的时间戳；
+        0 ：使用解码器的时间基准；
+            从输入解码器复制输入的时间基准到输出编码器中；
+        -1 ：尝试自动选择，来生成一个正常的输出；
+            默认值为-1；
+    -shortest (output) ：当最短的输入流结束时，就完成/结束输出的编码；
+    -dts_delta_threshold ：时间戳不连续性的增量限制；
+    -muxdelay seconds (input) ：设置最大分离-解码延时；
+    -muxpreload seconds (input) ：设置初始分离-解码延时；
+    -streamid output-stream-index:new-value (output) ：
+        为一个输出流分配一个新的流id值(stream-id value)；这个选项应该被优先指定给要作用的输出文件；
+    -bsf[:stream_specifier] bitstream_filters (output,per-stream) ：
+        为匹配的流设置流滤镜；
+        bitstream_filters是逗号分隔的流滤镜的列表，使用-bsfs选项获取流滤镜的列表；
+    -tag[:stream_specifier] codec_tag (input/output,per-stream) ：
+        为匹配的流强制设置标签/四字符代码；
+    -timecode hh:mm:ssSEPff ：为时间显示设置时间码；
+        对于non-drop frame来说，timecode的SEP是<:>；
+        对于drop frame来说，timecode的SEP是<;>或者<.>；
+        对于non-drop frame和drop frame的差别，可参考：https://documentation.apple.com/en/finalcutpro/
+            usermanual/index.html#chapter=D%26section=6%26tasks=true
+    -filter_complex filtergraph (global) ：定义一个复合滤镜，可以有任意数量的输入或输出；
+        对于简单滤镜图来说，只有同样类型的一个输入和一个输出，可以参考-filter选项；
+        滤镜图的具体描述可参考ffmpeg-filters手册的滤镜图语法-filtergraph syntax部分；
+        输入链接标签必须以[file_index:stream_specifier]的语法方式指向输入流；如果流说明符匹配了多个流，
+        则将会使用第一个；没有标签的输入将会匹配到第一个类型匹配的未使用到的输入流；
+        输出链接标签指向-map；没有标签的输出将会被添加到第一个输出文件；
+        注意：使用这个选项，可以实现只有lavfi源，而没有正常输入文件的情况；
+        具体例子，可参考官方文档该章节；
+    -lavfi filtergraph (global) ：定义一个复合滤镜图，等价于-flter_complex；
+    -filter_complex_script filename (global) ：这个选项和-filter_complex作用相似，唯一不同是它的参数
+        是一个文件名称，从该文件中读取描述滤镜图的内容；
+    -accurate_seek (input) ：这个选项决定是否在使用-ss选项时，开启输入文件中的精确定位；
+        默认是开启的，因此在转码的时候定位是精确的；使用-noaccurate_seek来关闭该功能，在复制某些流并
+        转码其它的流时很有用的； 
+    -seek_timestamp (input) ：这个选项决定在输入文件中使用-ss选项时是否是以时间戳定位；
+        默认是关闭的；如果设置为开启，-ss选项的参数被视为一个实际的时间戳，而不是文件开始时间的一个
+        偏移量；这仅仅影响那些不是以0时间戳开始的文件，比如transport streams；
+    -thread_queue_size size (input) ：
+        这个选项设置当从文件或者设备中读取数据时，队列中数据包的最大数量；对于低延时，高码率的直播流，
+        如果没有被及时的处理，数据包可能被丢弃；增大这个值的设置可以避免这个问题；
+    -override_ffserver (global) ：
+        使用ffserver重载输入规格；使用这个选项可以将任何输入流映射-map到ffserver，利用ffmpeg控制的编码
+        过程中的很多方面；如果没有这个选项，ffmpeg将会按照ffserver要求的方式传输信息到ffserver；
+    -sdp_file file (global) ：输出sdp信息到文件；
+        当至少有一个输出不是rtp流时，这会允许输出sdp信息；
+    -discard (input) ：允许在分离器中丢弃特定的流或者流中的帧；不是所有的分离器都支持这个选项；
+        none ：不丢弃任何帧；
+        default ：不丢弃任何帧；
+        noref ：丢弃所有的非引用帧；
+        bidir ：丢弃所有的双向帧；
+        nokey ：除了关键帧外，丢弃所有的帧；
+        all ：丢弃所有的帧；
+    -xerror (global) ：有异常--error时停止并退出；
+    作为一个特例：可以使用一个bitmap subtitle stream -- 位图字幕流作为输入，它将会被转换成一个视频，
+        大小同文件中最大的视频一致；或者在没有视频时候为720x576；注意：这是一个实验性的和临时的解决
+        方案，一旦libavfilter有合适的字幕支持，它将会被移除；
+    
+5.12 Preset files -- 预设文件
+    ffpreset files ：使用fpre/vpre/apre/spre来指定预设文件，以.ffpreset结尾；
+    avpreset files ：使用pre来指定预设文件，以.avpreset结尾；
+
+
+... ...
+
+
+        
+
+
+... ...
+
+
+22.6 hls 相关
+  格式：ffmpeg -i in.nut out.m3u8
+  -hls_time seconds : 设置片段长度；
+  -hls_list_size :
+      设置播放列表中片段的最大数量；设置为0会包含所有片段，默认值为5(最后5个)；
+  -hls_ts_options options_list : 
+      设置输出格式的选项，使用:分隔key=value参数对，包含:的字符需要被转义；
+  -hls_wrap wrap : 设置一个限制，当分片文件名中的数字，大于此数字时，之前的将会被覆盖；
+  -start_numnber number : 从设置的数字number开始播放列表队列，默认设置为从0开始；
+  -hls_allow_cache allcache : 明确设置是否客户端MAY|可以(1)或者MUST NOT|不能(0)缓存媒体文件分片；
+  -hls_base_url baseurl : 为列表中的每一个分片添加基础url，在生成播放列表中的绝对路径时使用；
+  -hls_segment_filename filename : 设置分片名称；除了设置-hls_flags singgle_file 的情况下，
+      filename的值是一个带有分片数字序号的字符串；
+  -hls_key_info_file key_info_file :
+      使用key_info_file中的信息为分片加密；
+      文件中具体的格式和含义可参考官方文档该章节；
+  -hls_flags single_file :
+      设置此项会将所有的分片都封装到一个单一MPEG-TS文件中，将在播放列表中使用字节范围；以这种方式
+      生成的HLS播放列表将会设置版本号为4；
+  -hls_flags delete_segments : 被从播放列表中移除的分片文件将在一段时间后被删除，这个时间相当于分
+      片时长加上播放列表的时长；
+
+
+... ... 
+
+
+22.17 segment,stream_segment,ssegment -- 分片相关
+    segment ：基础的流分片器；
+        segment封装器将媒体流以接近固定的时间长度输出到一系列分离的文件中，输出文件名的格式可以以类
+        似image2的样式设置，或者可以在开启strftime选项时，通过使用strftime模板来设置；
+    stream_segment ：是一个用来写入流输出格式的封装器的变体，它不需要全局头部--global headers，推荐
+        用它来输出MEPG transport stream分片(即.m2ts分片，通常扩展名可能为.ts)，ssegment是stream_segment
+        的一个短别名；
+    每个分片都是以选中流的一个关键帧开始的，这个可以通过reference_stream选项来设置；
+    注意：假如要精确的分割一个视频文件，需要关键帧和设置的分割时间点的时间戳相一致才可以，否则分片封装
+    器会从指定的开始时间之后最近的关键帧位置开始一个新的分片；
+    分片封装器最好用于固定帧率的视频上；
+    通过设置可选项segment_list，可以创建一个分片文件的列表，列表类型通过segment_list_type选项来设置；列
+    表中的资源文件名默认设置为实际产生的分片文件名；
+    可以参考hls封装器，它为HLS分片提供了更多特性实现；
+
+22.17.1 Options
+    segment封装器支持以下选项：
+    reference_stream specifier : 设置引用流，通过specifier说明符来设置；如果设置为auto，引用会自动选择；
+        否则，必须设置为一个流说明符，默认值是auto；
+    segment_format format : 重载内部封装格式，默认是通过文件扩展名来推测的；
+    segment_format_options options_list : 设置输出格式选项；
+        使用:分离由key=value形式组成的键值对；包含:的值必须被转义；
+    segment_list name : 生成一个通过name设定的列表文件，如果没有设置的话不生成该列表文件；
+    segment_list_flags flags : 设置影响分片列表生成的标记；目前支持下列标记：
+        cache ：允许缓存；(仅仅影响M3U8列表文件) 
+        live ：允许产生便于直播的文件；
+    segment_list_size size : 设置列表文件所包含片段文件的最大个数；默认值为0，表示包含所有；
+    segment_list_entry_prefix : 
+        为每个分片添加前缀；默认没有前缀；用于生成绝对地址，相当于hls中的-hls_base_url参数；
+    segment_list_type type : 设置列表格式；以下为可识别的设置：
+        flat ：生成一个分片文件的列表，每个文件一行；
+        csv,ext ：生成一个分片文件的列表，每个文件一行，每行以下面格式匹配(逗号分隔)：
+            segment_filename,segment_start_time,segment_end_time 
+            segment_filename是设置的输出文件的名称；需要时使用CSV转义；
+            2个时间参数分别指定分片文件的开始时间和结束时间，单位为秒；
+            使用以.csv或者.ext结尾的列表文件名称会自动使用这种格式生成列表文件；
+            .ext已废弃，推荐使用.csv；
+        ffconcat ：为分片文件生成一个ffconcat文件，这种文件可以被ffmpeg concat分离器读取；
+            使用以.ffcat或者.ffconcat结尾的列表文件名称，会自动使用这种格式生成列表文件；
+        m3u8 ：
+            生成一个M3U8文件，版本为3，与http://tools.ietf.org/id/draft-pantos-http-live-streaming兼容；
+            使用以.m3u8结尾的列表文件名称会自动使用这种格式生成列表文件；
+        不指定列表文件类型时，从列表文件名称的后缀自动推测类型；
+    segment_time time ：设置分片的时长，设置的值必须符合表示时长的规格，默认值为2；可参考segment_times；
+        注意：分片时长可能不精确，除非在设定的时间戳上强制指定关键帧；具体请参考例子；
+    segment_atclocktime 1|0 ：默认值为0；设置为1的时候，表示从00:00开始，以定期的时钟间隔来分片；
+        使用segment_time设定的值作为时间间隔长度；例如：设置segment_time为900，可以在12:00,12:15,12:30
+        创建分片文件，以此类推；
+    segment_time_delta delta ：为分片开始时间设置精确时间；默认值为0；
+        当设置了该参数时，如果一个关键帧满足以下关系，它会开始一个新分片：PTS >= start_time - time_delta；
+        在以GOP边界切分视频内容时这个选项是有帮助的，以避免关键帧恰好出现在指定的分割时间点前面的位置；
+        GOP -- Group Of Pictures ;
+    segment_times times ：指定分片时间点列表；times包含了用逗号分隔的时长的列表；以由小到大的顺序；
+    segment_frames frames ：指定分片帧数列表；frames包含了用逗号分隔的帧数的列表；以由小到大的方式；
+        这个选项指定，无论是否找到关键帧，都从帧数位置开始一个新分片；后续的帧数会越来越大(以何种方式?)，
+        或者等于列表中设置的下个值；
+    segment_wrap limit ：设置分片限制；一旦达到设置的限制就覆盖分片索引；
+    segment_start_number number ：设置第一个分片的索引号，默认值为0；
+    strftime 1|0 ：使用strftime函数定义新分片的名称；如果设置了该项，输出分片名必须包含一个strftime函数
+        模板；默认值为0；
+    break_non_keyframes 1|0 ：如果设置该项，允许分片从非关键帧的位置开始；默认值为0；
+    reset_timestamps 1|0 ：在每个分片的开始重设时间戳，因此每个分片都会以接近0的时间戳开始；这是为了生成
+        的文件便于播放；默认值为0；
+    initial_offset offset ：指定输出文件数据包中的时间戳的偏移量，必须为时长参数；默认值为0；
+
+22.17.2 Examples -- 例子
+    具体请参照官方文档本章节部分。      
+
+
+... ... 
+
+    
+    
+
+
+37.80 overlay 滤镜 
+    在一个视频上面覆盖另外一个视频(也可以是图片)。 
+
+
+
+
+
+... ...
+
+
+
+
+给视频添加图片水印：
+    方法1：ffmpeg –i inputvideo.avi -vf "movie=watermarklogo.png [watermark]; [in][watermark] overlay=main_w-overlay_w-10:main_h-overlay_h-10 [out]" outputvideo.flv
+    方法2：ffmpeg -i inputvideo.avi -i watermarklogo.png -filter_complex
+    "overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2:enable='lte(t,15)'" -codec:a copy output.flv
+
+
+关于视频封装格式/视频编码：
+    .mp4是一种封装格式，是MPEG-4 Part 14的简写，是MPEG-4 Part 14唯一的官方文件扩展名，但也有使用
+        其它扩展名：.m4a/.m4p ... 等；
+    H.264，也即ITU-T H.264，和MEPG-4 Part 10或者AVC或者MPEG-4 AVC都指代同一个编码方案；
+    hls/m3u8/.m2ts/.ts相关：
+        .m2ts - 是一种视频封装格式，是基于 MPEG-2 Transport Stream (M2TS)的封装格式，但不是.MPEG2
+        封装格式，这里要注意；生成m3u8列表时生成的xxx.ts文件，其实也等同于xxx.m2ts文件；
+        可参考：http://stackoverflow.com/questions/18993266/html5-and-mp4-vs-m2ts-containers
+
+
+
+获取视频时长：
+    ffprobe -i some_video -show_entries format=duration -v quiet -of csv="p=0"
+    可参考：http://superuser.com/questions/361329/how-to-get-length-of-video-file-from-console
+
+
+生成视频图片相关： 例如 -- 每[60s]间隔生成一张[640x360]的照片；
+    方法1：ffmpeg -i input.mp4 -r 1/60 -s 640x360 -f image2 oupput-image-%03d.jpg
+        (x:55s) 速度稍慢，同一视频测试耗时73s左右；
+    方法2：ffmpeg -i input.mp4 -vf fps=1/60 -s 640x360 output-image-%03d.jpg
+        (x:30s) 速度稍快，同一视频测试耗时51s左右；
+    格式和其它参数使用，可参照：http://linuxers.org/tutorial/how-extract-images-video-using-ffmpeg 
+
+    方法3：这种方法比较快；使用-ss选项；需要设置在输入参数的位置；在输出参数的位置会严重影响速度；
+        ffmpeg -ss 00:03:1 -i input.mp4 -vframes 1 -s 640x360 output-image.jpg 
+        在需要生成的各个时间点重复执行该命令即可；
+
+
