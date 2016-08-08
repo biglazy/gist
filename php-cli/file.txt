@@ -1,0 +1,6 @@
+This is child process.pid=0
+This is parent process.child_pid=12286
+This is child process.pid=0
+This is parent process.child_pid=12311
+This is child process-12335.pid=0
+This is parent process-12335.child_pid=12336
