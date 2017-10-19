@@ -8,6 +8,7 @@ source = ['/home/qi/gist/py-study', '/home/qi/ssh_key']
 target_dir = '/home/qi/py-study-backup'
 
 if not os.path.exists(target_dir):
+
     os.mkdir(target_dir)
 
 # 3. 将备份文件打包压缩成zip文件
@@ -15,8 +16,15 @@ if not os.path.exists(target_dir):
 today = target_dir + os.sep + time.strftime('%Y%m%d')
 # 将当前时间作为zip文件的文件名
 now = time.strftime('%H%M%S')
-# zip文件全路径
-target = today+ os.sep + now + '.zip'
+
+# 添加一条来自用户的注释以创建zip文件的文件名
+comment = input('Enter a comment -->')
+# 检查是否有评论输入
+if len(comment) == 0:
+    target = today + os.sep + now + '.zip'
+else:
+    target = today + os.sep + now + '_' + \
+        comment.replace(' ', '_') + '.zip'
 
 # 如果子目录不存在则创建一个
 if not os.path.exists(today):
